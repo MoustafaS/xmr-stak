@@ -1,0 +1,109 @@
+﻿Merge branch 'master' of https://github.com/fireice-uk/xmr-stak
+
+# Conflicts:
+#	xmrstak/misc/executor.cpp
+#
+# It looks like you may be committing a merge.
+# If this is not correct, please remove the file
+#	.git/MERGE_HEAD
+# and try again.
+
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+# On branch master
+# Your branch is up-to-date with 'origin/master'.
+#
+# All conflicts fixed but you are still merging.
+#
+# Changes to be committed:
+#	modified:   .gitignore
+#	modified:   .travis.yml
+#	modified:   CMakeLists.txt
+#	modified:   Dockerfile
+#	modified:   README.md
+#	modified:   doc/FAQ.md
+#	deleted:    doc/Linux_deployment.md
+#	modified:   doc/compile.md
+#	modified:   doc/compile_Linux.md
+#	modified:   doc/compile_Windows.md
+#	modified:   doc/tuning.md
+#	modified:   doc/usage.md
+#
+# Changes not staged for commit:
+#	modified:   THIRD-PARTY-LICENSES
+#	modified:   doc/compile_MacOS.md
+#	modified:   xmrstak/backend/amd/amd_gpu/gpu.cpp
+#	modified:   xmrstak/backend/amd/amd_gpu/gpu.hpp
+#	modified:   xmrstak/backend/amd/amd_gpu/opencl/cryptonight.cl
+#	modified:   xmrstak/backend/amd/amd_gpu/opencl/wolf-skein.cl
+#	modified:   xmrstak/backend/amd/autoAdjust.hpp
+#	modified:   xmrstak/backend/amd/config.tpl
+#	modified:   xmrstak/backend/amd/jconf.cpp
+#	modified:   xmrstak/backend/amd/jconf.hpp
+#	modified:   xmrstak/backend/amd/minethd.cpp
+#	modified:   xmrstak/backend/backendConnector.cpp
+#	modified:   xmrstak/backend/backendConnector.hpp
+#	modified:   xmrstak/backend/cpu/autoAdjust.hpp
+#	modified:   xmrstak/backend/cpu/autoAdjustHwloc.hpp
+#	modified:   xmrstak/backend/cpu/config.tpl
+#	modified:   xmrstak/backend/cpu/crypto/c_blake256.c
+#	modified:   xmrstak/backend/cpu/crypto/c_blake256.h
+#	modified:   xmrstak/backend/cpu/crypto/c_skein.h
+#	modified:   xmrstak/backend/cpu/crypto/cryptonight.h
+#	modified:   xmrstak/backend/cpu/crypto/cryptonight_aesni.h
+#	modified:   xmrstak/backend/cpu/crypto/cryptonight_common.cpp
+#	modified:   xmrstak/backend/cpu/crypto/hash.h
+#	modified:   xmrstak/backend/cpu/crypto/skein_port.h
+#	modified:   xmrstak/backend/cpu/hwlocMemory.cpp
+#	modified:   xmrstak/backend/cpu/jconf.cpp
+#	modified:   xmrstak/backend/cpu/jconf.hpp
+#	modified:   xmrstak/backend/cpu/minethd.cpp
+#	modified:   xmrstak/backend/cpu/minethd.hpp
+#	modified:   xmrstak/backend/cryptonight.hpp
+#	modified:   xmrstak/backend/globalStates.cpp
+#	modified:   xmrstak/backend/globalStates.hpp
+#	modified:   xmrstak/backend/iBackend.hpp
+#	modified:   xmrstak/backend/miner_work.hpp
+#	modified:   xmrstak/backend/nvidia/autoAdjust.hpp
+#	modified:   xmrstak/backend/nvidia/config.tpl
+#	modified:   xmrstak/backend/nvidia/jconf.cpp
+#	modified:   xmrstak/backend/nvidia/jconf.hpp
+#	modified:   xmrstak/backend/nvidia/minethd.cpp
+#	modified:   xmrstak/backend/nvidia/minethd.hpp
+#	modified:   xmrstak/backend/nvidia/nvcc_code/cryptonight.hpp
+#	modified:   xmrstak/backend/nvidia/nvcc_code/cuda_core.cu
+#	modified:   xmrstak/backend/nvidia/nvcc_code/cuda_extra.cu
+#	modified:   xmrstak/backend/plugin.hpp
+#	modified:   xmrstak/cli/cli-miner.cpp
+#	modified:   xmrstak/config.tpl
+#	modified:   xmrstak/http/webdesign.cpp
+#	modified:   xmrstak/jconf.cpp
+#	modified:   xmrstak/jconf.hpp
+#	modified:   xmrstak/misc/configEditor.hpp
+#	modified:   xmrstak/misc/console.cpp
+#	modified:   xmrstak/misc/console.hpp
+#	modified:   xmrstak/misc/environment.hpp
+#	modified:   xmrstak/misc/executor.hpp
+#	modified:   xmrstak/misc/telemetry.cpp
+#	modified:   xmrstak/misc/telemetry.hpp
+#	modified:   xmrstak/misc/uac.hpp
+#	modified:   xmrstak/misc/utility.cpp
+#	modified:   xmrstak/misc/utility.hpp
+#	modified:   xmrstak/net/jpsock.cpp
+#	modified:   xmrstak/net/jpsock.hpp
+#	modified:   xmrstak/net/msgstruct.hpp
+#	modified:   xmrstak/net/socket.cpp
+#	modified:   xmrstak/net/socket.hpp
+#	modified:   xmrstak/net/socks.hpp
+#	modified:   xmrstak/params.hpp
+#	modified:   xmrstak/version.cpp
+#
+# Untracked files:
+#	xmrstak/cli/xmr-stak.manifest
+#	xmrstak/misc/coinDescription.hpp
+#	xmrstak/misc/uac.cpp
+#	xmrstak/picosha2/
+#	xmrstak/pools.tpl
+#
+
