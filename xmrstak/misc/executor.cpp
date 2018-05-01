@@ -1,25 +1,25 @@
 /*
-  * This program is free software: you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation, either version 3 of the License, or
-  * any later version.
-  *
-  * This program is distributed in the hope that it will be useful,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  * GNU General Public License for more details.
-  *
-  * You should have received a copy of the GNU General Public License
-  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  *
-  * Additional permission under GNU GPL version 3 section 7
-  *
-  * If you modify this Program, or any covered work, by linking or combining
-  * it with OpenSSL (or a modified version of that library), containing parts
-  * covered by the terms of OpenSSL License and SSLeay License, the licensors
-  * of this Program grant you additional permission to convey the resulting work.
-  *
-  */
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*
+* Additional permission under GNU GPL version 3 section 7
+*
+* If you modify this Program, or any covered work, by linking or combining
+* it with OpenSSL (or a modified version of that library), containing parts
+* covered by the terms of OpenSSL License and SSLeay License, the licensors
+* of this Program grant you additional permission to convey the resulting work.
+*
+*/
 
 #include "xmrstak/jconf.hpp"
 #include "executor.hpp"
@@ -146,9 +146,9 @@ bool executor::get_live_pools(std::vector<jpsock*>& eval_pools, bool is_dev)
 }
 
 /*
- * This event is called by the timer and whenever something relevant happens.
- * The job here is to decide if we want to connect, disconnect, or switch jobs (or do nothing)
- */
+* This event is called by the timer and whenever something relevant happens.
+* The job here is to decide if we want to connect, disconnect, or switch jobs (or do nothing)
+*/
 void executor::eval_pool_choice()
 {
 	std::vector<jpsock*> eval_pools;
@@ -168,11 +168,15 @@ void executor::eval_pool_choice()
 	// Special case - if we are without a pool, connect to all find a live pool asap
 	if (running == 0)
 	{
+		if (dev_time)
+			printer::inst()->print_msg(L1, "Fast-connecting to dev pool ...");
+
 		for (jpsock* pool : eval_pools)
 		{
 			if (pool->can_connect())
 			{
-				printer::inst()->print_msg(L1, "Fast-connecting to %s pool ...", pool->get_pool_addr());
+				if (!dev_time)
+					printer::inst()->print_msg(L1, "Fast-connecting to %s pool ...", pool->get_pool_addr());
 				std::string error;
 				if (!pool->connect(error))
 					log_socket_error(pool, std::move(error));
@@ -242,13 +246,17 @@ void executor::eval_pool_choice()
 	}
 
 
-	for (jpsock& pool : pools)
-	{
-		if (goal->is_logged_in() && pool.is_logged_in() && pool.get_pool_id() != goal->get_pool_id())
-			pool.disconnect(true);
 
-		if (pool.is_dev_pool() && pool.is_logged_in())
-			pool.disconnect(true);
+	if (!dev_time)
+	{
+		for (jpsock& pool : pools)
+		{
+			if (goal->is_logged_in() && pool.is_logged_in() && pool.get_pool_id() != goal->get_pool_id())
+				pool.disconnect(true);
+
+			if (pool.is_dev_pool() && pool.is_logged_in())
+				pool.disconnect(true);
+		}
 	}
 
 }
@@ -315,15 +323,22 @@ void executor::on_sock_ready(size_t pool_id)
 	jpsock* pool = pick_pool_by_id(pool_id);
 
 
-	printer::inst()->print_msg(L1, "Pool %s connected. Logging in...", pool->get_pool_addr());
+	if (pool->is_dev_pool())
+		printer::inst()->print_msg(L1, "Dev pool connected. Logging in...");
+	else
+		printer::inst()->print_msg(L1, "Pool %s connected. Logging in...", pool->get_pool_addr());
 
 	if (!pool->cmd_login())
 	{
-		if (!pool->have_sock_error())
+		if (pool->have_call_error() && !pool->is_dev_pool())
 		{
-			log_socket_error(pool, pool->get_call_error());
-			pool->disconnect();
+			std::string str = "Login error: " + pool->get_call_error();
+
+			log_socket_error(pool, std::move(str));
 		}
+
+		if (!pool->have_sock_error())
+			pool->disconnect();
 	}
 }
 
@@ -339,8 +354,11 @@ void executor::on_sock_error(size_t pool_id, std::string&& sError, bool silent)
 	if (silent)
 		return;
 
-	log_socket_error(pool, std::move(sError));
+	if (!pool->is_dev_pool())
+		log_socket_error(pool, std::move(sError));
 
+	else
+		printer::inst()->print_msg(L1, "Dev pool socket error - mining on user pool...");
 }
 
 void executor::on_pool_have_job(size_t pool_id, pool_job& oPoolJob)
@@ -394,11 +412,23 @@ void executor::on_pool_have_job(size_t pool_id, pool_job& oPoolJob)
 void executor::on_miner_result(size_t pool_id, job_result& oResult)
 {
 	jpsock* pool = pick_pool_by_id(pool_id);
-	bool is_monero = jconf::inst()->IsCurrencyMonero();
+
+
+	const char* backend_name = xmrstak::iBackend::getName(pvThreads->at(oResult.iThreadId)->backendType);
+	uint64_t backend_hashcount, total_hashcount = 0;
+
+	backend_hashcount = pvThreads->at(oResult.iThreadId)->iHashCount.load(std::memory_order_relaxed);
+	for (size_t i = 0; i < pvThreads->size(); i++)
+		total_hashcount += pvThreads->at(i)->iHashCount.load(std::memory_order_relaxed);
 
 	if (pool->is_dev_pool())
 	{
-		
+
+		//Ignore errors silently
+		if (pool->is_running() && pool->is_logged_in())
+			pool->cmd_submit(oResult.sJobID, oResult.iNonce, oResult.bResult, backend_name,
+				backend_hashcount, total_hashcount, jconf::inst()->GetCurrentCoinSelection().GetDescription(0).GetMiningAlgo()
+			);
 		return;
 	}
 
@@ -409,7 +439,9 @@ void executor::on_miner_result(size_t pool_id, job_result& oResult)
 	}
 
 	size_t t_start = get_timestamp_ms();
-	bool bResult = pool->cmd_submit(oResult.sJobID, oResult.iNonce, oResult.bResult, pvThreads->at(oResult.iThreadId), is_monero);
+	bool bResult = pool->cmd_submit(oResult.sJobID, oResult.iNonce, oResult.bResult,
+		backend_name, backend_hashcount, total_hashcount, jconf::inst()->GetCurrentCoinSelection().GetDescription(1).GetMiningAlgo()
+	);
 	size_t t_len = get_timestamp_ms() - t_start;
 
 	if (t_len > 0xFFFF)
@@ -502,14 +534,18 @@ void executor::ex_main()
 			auto& params = xmrstak::params::inst();
 			already_have_cli_pool = true;
 
+
 			const char* wallet = params.poolUsername.empty() ? cfg.sWalletAddr : params.poolUsername.c_str();
+			const char* rigid = params.userSetRigid ? params.poolRigid.c_str() : cfg.sRigId;
 			const char* pwd = params.userSetPwd ? params.poolPasswd.c_str() : cfg.sPasswd;
 			bool nicehash = cfg.nicehash || params.nicehashMode;
 
-			pools.emplace_back(i + 1, cfg.sPoolAddr, wallet, pwd, 9.9, false, params.poolUseTls, cfg.tls_fingerprint, nicehash);
+
+			pools.emplace_back(i + 1, cfg.sPoolAddr, wallet, rigid, pwd, 9.9, false, params.poolUseTls, cfg.tls_fingerprint, nicehash);
 		}
 		else
-			pools.emplace_back(i + 1, cfg.sPoolAddr, cfg.sWalletAddr, cfg.sPasswd, cfg.weight, false, cfg.tls, cfg.tls_fingerprint, cfg.nicehash);
+			pools.emplace_back(i + 1, cfg.sPoolAddr, cfg.sWalletAddr, cfg.sRigId, cfg.sPasswd, cfg.weight, false, cfg.tls, cfg.tls_fingerprint, cfg.nicehash);
+
 		}
 
 	if (!xmrstak::params::inst().poolURL.empty() && !already_have_cli_pool)
@@ -521,7 +557,7 @@ void executor::ex_main()
 			win_exit();
 		}
 
-		pools.emplace_back(i + 1, params.poolURL.c_str(), params.poolUsername.c_str(), params.poolPasswd.c_str(), 9.9, false, params.poolUseTls, "", params.nicehashMode);
+		pools.emplace_back(i + 1, params.poolURL.c_str(), params.poolUsername.c_str(), params.poolRigid.c_str(), params.poolPasswd.c_str(), 9.9, false, params.poolUseTls, "", params.nicehashMode);
 	}
 
 	ex_event ev;
@@ -564,7 +600,7 @@ void executor::ex_main()
 			break;
 
 		case EV_GPU_RES_ERROR:
-			log_result_error(std::string(ev.oGpuError.error_str));
+			log_result_error(std::string(ev.oGpuError.error_str + std::string(" GPU ID ") + std::to_string(ev.oGpuError.idx)));
 			break;
 
 		case EV_PERF_TICK:
@@ -621,6 +657,7 @@ void executor::ex_main()
 			break;
 		}
 	}
+
 	}
 
 inline const char* hps_format(double h, char* buf, size_t l)
@@ -711,8 +748,10 @@ void executor::hashrate_report(std::string& out)
 		std::vector<xmrstak::iBackend*> backEnds;
 		std::copy_if(pvThreads->begin(), pvThreads->end(), std::back_inserter(backEnds),
 			[&](xmrstak::iBackend* backend)
+
 		{
 			return backend->backendType == b;
+
 		}
 		);
 
@@ -724,6 +763,7 @@ void executor::hashrate_report(std::string& out)
 			std::string name(xmrstak::iBackend::getName(bType));
 			std::transform(name.begin(), name.end(), name.begin(), ::toupper);
 
+
 			out.append("HASHRATE REPORT - ").append(name).append("\n");
 			out.append("| ID |    10s |    60s |    15m |");
 			if (nthd != 1)
@@ -731,6 +771,7 @@ void executor::hashrate_report(std::string& out)
 			else
 				out.append(1, '\n');
 
+			double fTotalCur[3] = { 0.0, 0.0, 0.0 };
 			for (i = 0; i < nthd; i++)
 			{
 				double fHps[3];
@@ -746,9 +787,14 @@ void executor::hashrate_report(std::string& out)
 				out.append(hps_format(fHps[1], num, sizeof(num))).append(" |");
 				out.append(hps_format(fHps[2], num, sizeof(num))).append(1, ' ');
 
-				fTotal[0] += fHps[0];
-				fTotal[1] += fHps[1];
-				fTotal[2] += fHps[2];
+
+				fTotal[0] += (std::isnormal(fHps[0])) ? fHps[0] : 0.0;
+				fTotal[1] += (std::isnormal(fHps[1])) ? fHps[1] : 0.0;
+				fTotal[2] += (std::isnormal(fHps[2])) ? fHps[2] : 0.0;
+
+				fTotalCur[0] += (std::isnormal(fHps[0])) ? fHps[0] : 0.0;
+				fTotalCur[1] += (std::isnormal(fHps[1])) ? fHps[1] : 0.0;
+				fTotalCur[2] += (std::isnormal(fHps[2])) ? fHps[2] : 0.0;
 
 				if ((i & 0x1) == 1) //Odd i's
 					out.append("|\n");
@@ -757,20 +803,29 @@ void executor::hashrate_report(std::string& out)
 			if ((i & 0x1) == 1) //We had odd number of threads
 				out.append("|\n");
 
-			if (nthd != 1)
-				out.append("-----------------------------------------------------\n");
-			else
-				out.append("---------------------------\n");
+
+
+
+
+
+			out.append("Totals (").append(name).append("): ");
+			out.append(hps_format(fTotalCur[0], num, sizeof(num)));
+			out.append(hps_format(fTotalCur[1], num, sizeof(num)));
+			out.append(hps_format(fTotalCur[2], num, sizeof(num)));
+			out.append(" H/s\n");
+
+			out.append("-----------------------------------------------------------------\n");
 		}
 	}
 
-	out.append("Totals:  ");
+	out.append("Totals (ALL):  ");
 	out.append(hps_format(fTotal[0], num, sizeof(num)));
 	out.append(hps_format(fTotal[1], num, sizeof(num)));
 	out.append(hps_format(fTotal[2], num, sizeof(num)));
 	out.append(" H/s\nHighest: ");
 	out.append(hps_format(fHighestHps, num, sizeof(num)));
 	out.append(" H/s\n");
+	out.append("-----------------------------------------------------------------\n");
 }
 
 char* time_format(char* buf, size_t len, std::chrono::system_clock::time_point time)
@@ -779,10 +834,10 @@ char* time_format(char* buf, size_t len, std::chrono::system_clock::time_point t
 	tm stime;
 
 	/*
-	 * Oh for god's sake... this feels like we are back to the 90's...
-	 * and don't get me started on lack strcpy_s because NIH - use non-standard strlcpy...
-	 * And of course C++ implements unsafe version because... reasons
-	 */
+	* Oh for god's sake... this feels like we are back to the 90's...
+	* and don't get me started on lack strcpy_s because NIH - use non-standard strlcpy...
+	* And of course C++ implements unsafe version because... reasons
+	*/
 
 #ifdef _WIN32
 	localtime_s(&stime, &ctime);
@@ -950,6 +1005,7 @@ void executor::http_hashrate_report(std::string& out)
 					out.append(sHtmlMotdBoxStart);
 					have_motd = true;
 				}
+
 
 				snprintf(buffer, sizeof(buffer), sHtmlMotdEntry, pool.get_pool_addr(), motd.c_str());
 				out.append(buffer);
